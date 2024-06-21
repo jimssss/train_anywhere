@@ -29,8 +29,10 @@ class TrainingParams(BaseModel):
     decay_samples: int = 2560000
     warmup_epochs: int = 2
 
+
 app = FastAPI()
 
+MODEL_FILE_PATH = "exported_model_test/"  # 訓練好的模型檔案路徑
 UPLOAD_FOLDER = "uploads"
 # 訓練狀態idle:空閒, training:訓練中, completed:訓練完成, failed:訓練失敗
 TRAINING_STATUS = {"status": "idle", "accuracy": None}  
@@ -45,6 +47,7 @@ async def startup_event():
     if os.path.exists(UPLOAD_FOLDER):
         shutil.rmtree(UPLOAD_FOLDER)
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 async def save_uploaded_file(file: UploadFile, category_name: str) -> str:
     # 建立圖片分類資料夾
@@ -100,7 +103,7 @@ async def train_model_task(training_params: TrainingParams):
         hparams = image_classifier.HParams(learning_rate=training_params.learning_rate,
                                            batch_size=training_params.batch_size,
                                            epochs=training_params.epochs,
-                                           export_dir="exported_model_test/")  # model export directory
+                                           export_dir=MODEL_FILE_PATH)  # model export directory
         options = image_classifier.ImageClassifierOptions(supported_model=spec, hparams=hparams)
         model = await asyncio.to_thread(image_classifier.ImageClassifier.create,
                                         train_data=train_data,
@@ -122,10 +125,18 @@ async def train_model_task(training_params: TrainingParams):
 async def get_training_status():
     return TRAINING_STATUS
 
-# @app.get("/predict/")
-# async def predict(image_file: UploadFile = File(...)):
-#     if TRAINING_STATUS["status"] != "completed":
-#         return JSONResponse(status_code=400, content={"message": "Model is not trained yet."})
+#download model
+@app.get("/download_model/")
+async def download_model():
+    model_path = os.path.join(MODEL_FILE_PATH,"model.tflite")
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail="Trained model file not found.")
+    
+    return FileResponse(
+        model_path, 
+        media_type="application/octet-stream",
+        filename="model.tflite"
+    )
     
     
 
