@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>檔案上傳</title>
+</head>
+<body>
+    <h1>上傳檔案</h1>
+    <form id="upload-form">
+        <input type="file" id="file-input" name="file" multiple>
+        <br>
+        <label for="category-name">分類名稱:</label>
+        <input type="text" id="category-name" name="category-name">
+        <br>
+        <div id="preview-area">
+            <h2>預覽</h2>
+            <div id="preview-images"></div>
+        </div>
+        <button type="submit">上傳</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const previewImages = document.getElementById('preview-images');
+        const uploadForm = document.getElementById('upload-form');
+        const responseDiv = document.getElementById('response');
+
+        fileInput.addEventListener('change', (event) => {
+            const files = event.target.files;
+            previewImages.innerHTML = ''; // 清除之前的預覽
+
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+
+                    reader.onload = (e) => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.maxWidth = '200px';
+                        img.style.maxHeight = '200px';
+                        previewImages.appendChild(img);
+                    };
+
+                    reader.readAsDataURL(file);
+                } else {
+                    const p = document.createElement('p');
+                    p.textContent = `${file.name} 不是圖像檔案。`;
+                    previewImages.appendChild(p);
+                }
+            }
+        });
+
+        uploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const files = fileInput.files;
+            const categoryName = document.getElementById('category-name').value;
+
+            if (files.length === 0) {
+                responseDiv.innerHTML = '<p>請選擇至少一個檔案！</p>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('category_name', categoryName);
+
+            for (const file of files) {
+                formData.append('file', file);
+            }
+
+            try {
+                const response = await fetch('http://your_server_address:your_port/uploadfiles/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    responseDiv.innerHTML = `<p>檔案上傳成功，模型訓練已開始！</p>`;
+                    console.log(data);
+                } else {
+                    responseDiv.innerHTML = `<p>檔案上傳失敗，請重試！</p>`;
+                    console.error(response.status, response.statusText);
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<p>網路錯誤，請重試！</p>`;
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
